@@ -6,7 +6,6 @@
   'use strict';
   class Encoder{
     constructor(map){
-      const that=Encoder
       this.map=map
     }
     get reverseMap(){
@@ -20,17 +19,16 @@
       return reverseMap
     }
     encode(buffer){
-      const that=Encoder,{map}=this,redix=BigInt(map.length)
+      const {map}=this,redix=BigInt(map.length)
       if(typeof buffer==='string'){buffer=this.textEncoder.encode(buffer)}
       var value=''
-      for(var s of that.xbigIntToArray(that.bufferToBigInt(buffer),redix)){
+      for(var s of Encoder.xbigIntToArray(Encoder.bufferToBigInt(buffer),redix)){
         value+=map[s]
       }
       return value
     }
     decode(string){
-      const that=Encoder
-      return that.bigIntToBuffer(that.stringToBigInt(string,this.reverseMap))
+      return Encoder.bigIntToBuffer(Encoder.stringToBigInt(string,this.reverseMap))
     }
     decodeString(string){
       return this.textDecoder.decode(this.decode(string))
