@@ -85,7 +85,8 @@
       <input type="button" value="解码" name="decodeString">
       <span id="encType" style="display:inline-block;">
         <label><input type="radio" name="encType" value="base20976" checked>Base20976</label>
-        <label><input type="radio" name="encType" value="base2048">Base2048LE</label>
+        <label><input type="radio" name="encType" value="base2048Bip39Cn">Base2048-BIP39-cn</label>
+        <label><input type="radio" name="encType" value="base2048Bip39En">Base2048-BIP39-en</label>
         <label><input type="radio" name="encType" value="base62">Base62LE</label>
         <label><input type="radio" name="encType" value="base58">Base58LE</label>
         <label><input type="radio" name="encType" value="切噜LE">切噜LE</label>
@@ -99,6 +100,8 @@
     </div>
   </div>
   <script src="./bigint-encode.js"></script>
+  <script src="./base2048-bip39-cn.js"></script>
+  <script src="./base2048-bip39-en.js"></script>
   <script>
     (() => {
       const $ = s => document.querySelector(s)
