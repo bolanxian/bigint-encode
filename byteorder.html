@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Byteorder</title>
+  </head>
+  <body>
+    <pre></pre>
+    <script>
+      (()=>{
+        let str=''
+        try{
+          const gl=document.createElement('canvas').getContext('webgl')
+          const renderer=gl.getParameter(gl.getExtension('WEBGL_debug_renderer_info').UNMASKED_RENDERER_WEBGL)
+          str=`${renderer}\n\n`
+        }catch(e){
+          console.exception(e)
+        }
+        //[isLE,isBE]=new Int8Array(Int16Array.of(1).buffer)
+        const map=new Map([
+          [Uint16Array.of(0x1122),{
+            "\x22\x11":'<',
+            "\x11\x22":'>'
+          }],
+          [Uint32Array.of(0x11223344),{
+            "\x44\x33\x22\x11":'<',
+            "\x11\x22\x33\x44":'>'
+          }],
+          [BigUint64Array.of(0x1122334455667788n),{
+            "\x88\x77\x66\x55\x44\x33\x22\x11":'<',
+            "\x11\x22\x33\x44\x55\x66\x77\x88":'>'
+          }],
+          [Float32Array.of(1.982031),{
+            "\x31\xB3\xFD\x3F":'<',
+            "\x3F\xFD\xB3\x31":'>'
+          }],
+          [Float64Array.of(1.982031),{
+            "\xE4\x87\x4A\x23\x66\xB6\xFF\x3F":'<',
+            "\x3F\xFF\xB6\x66\x23\x4A\x87\xE4":'>',
+            "\x66\xB6\xFF\x3F\xE4\x87\x4A\x23":'MIDDLE'
+          }]
+        ])
+        const hasOwn=Object.prototype.hasOwnProperty
+        for(let [{buffer,constructor:{name}},obj] of map){
+          buffer=String.fromCharCode(...new Uint8Array(buffer))
+          str+=`${name}:${hasOwn.call(obj,buffer)?obj[buffer]:'|'}\n`
+        }
+        document.querySelector('pre').innerText=str
+      })()
+    </script>
+  </body>
+</html>
