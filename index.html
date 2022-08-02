@@ -13,7 +13,6 @@
       background: #fff;
       min-width: 320px;
     }
-
     textarea,
     input,
     select {
@@ -21,7 +20,6 @@
       outline: none;
       font-size: 1em;
     }
-
     .main {
       max-width: 980px;
       margin: 0 auto;
@@ -29,11 +27,9 @@
       line-height: 1.5em;
       word-wrap: break-word;
     }
-
     .main .title {
       text-align: center;
     }
-
     .main .title h1 {
       display: inline-block;
       font-weight: 500;
@@ -42,9 +38,7 @@
       line-height: 1.1em;
       margin: 15px 0;
     }
-  </style>
-  <style>
-    textarea {
+    .main textarea {
       width: 100%;
       height: 150px;
       border: solid 1px #ccc;
@@ -52,110 +46,73 @@
       line-height: 140%;
       box-sizing: border-box
     }
-
-    textarea:hover {
+    .main textarea:hover {
       border-color: #999;
     }
-
-    textarea:focus {
+    .main textarea:focus {
       border-color: #59f;
-    }
-
-    #dest {
-      border-color: #ccc;
-    }
-
-    #copytext {
-      position: fixed;
-      left: 9999px;
-      top: 9999px;
     }
   </style>
 </head>
 
 <body>
-  <div class="main">
+  <form id="bigint-encode" class="main" action="about:blank">
     <div class="title">
       <h1>BigInt Encoder</h1>
     </div>
-    <textarea id="src" name="src"></textarea>
+    <textarea name="src"></textarea>
     <div style="margin:10px 0px;">
-      <input type="button" name="clean" value="清空">
-      <input type="button" value="编码" name="encode">
-      <input type="button" value="解码" name="decodeString">
-      <span id="encType" style="display:inline-block;">
-        <label><input type="radio" name="encType" value="base20976" checked>Base20976</label>
-        <label><input type="radio" name="encType" value="base2048Bip39Cn">Base2048-BIP39-cn</label>
-        <label><input type="radio" name="encType" value="base2048Bip39En">Base2048-BIP39-en</label>
-        <label><input type="radio" name="encType" value="base62">Base62LE</label>
-        <label><input type="radio" name="encType" value="base58">Base58LE</label>
-        <label><input type="radio" name="encType" value="切噜LE">切噜LE</label>
+      <input type="submit" value="编码" name="encode">
+      <input type="submit" value="解码" name="decodeString">
+      <span style="display:inline-block;">
+        <label><input type="radio" name="type" value="base20976" checked>Base20976</label>
+        <label><input type="radio" name="type" value="base2048Bip39Cn">Base2048-BIP39-cn</label>
+        <label><input type="radio" name="type" value="base2048Bip39En">Base2048-BIP39-en</label>
+        <label><input type="radio" name="type" value="base62">Base62LE</label>
+        <label><input type="radio" name="type" value="base58">Base58LE</label>
+        <label><input type="radio" name="type" value="切噜LE">切噜LE</label>
       </span>
     </div>
-    <textarea name="dest" readonly="" id="dest"></textarea>
+    <textarea name="dest" readonly=""></textarea>
     <div style="margin:10px 0px;">
       <input type="button" id="copy" value="复制" style="display: inline-block;">
       <span id="copytip"></span>
-      <div id="copytext"></div>
     </div>
-  </div>
+  </form>
   <script src="./bigint-encode.js"></script>
   <script src="./base2048-bip39-cn.js"></script>
   <script src="./base2048-bip39-en.js"></script>
   <script>
     (() => {
-      const $ = s => document.querySelector(s)
-      $('[name=clean]').addEventListener('click', e => {
-        $('#src').value = ''
-        $('#dest').value = ''
-      })
+      const tip = document.querySelector('#copytip')
+      const dest = document.querySelector('#bigint-encode [name=dest]')
       const copy = data => {
-        var element = $('#copytext'), msg = '...'
-        element.innerText = data
-        if (document.body.createTextRange) {
-          var range = document.body.createTextRange()
-          range.moveToElementText(element)
-          range.select()
-        } else if (window.getSelection) {
-          var selection = window.getSelection()
-          range = document.createRange()
-          range.selectNodeContents(element)
-          selection.removeAllRanges()
-          selection.addRange(range)
-        } else return
+        let msg = ''
         try {
+          data.focus()
+          data.select()
           if (document.execCommand('copy', false, null)) { msg = '已复制！' }
-        } catch (e) { }
-        $('#copytip').innerText = msg
+        } catch (e) { msg = '...' }
+        tip.innerText = msg
+        document.addEventListener("click", e => { tip.innerText = '' }, { capture: !0, once: !0 })
       }
-      $('#copy').addEventListener('click', e => {
-        copy($('#dest').value)
-      })
-      document.addEventListener("click", function (e) {
-        const { nodeName } = e.target
-        if (nodeName === 'INPUT') return
-        $('#copytip').innerHTML = ''
-      }, false)
-      var encTypeChecked = $('input[name=encType][checked]')
-      var encType = encTypeChecked.value
-      encTypeChecked.click()
-      $('#encType').addEventListener('change', e => {
-        encType = e.target.value
-      })
-      const onclick = e => {
-        var src = $('#src').value, tip = $('#copytip')
-        tip.innerText = ''
+      document.querySelector('#copy').addEventListener('click', e => { copy(dest) })
+      document.querySelector('#bigint-encode').addEventListener('submit', e => {
+        e.preventDefault()
+        e.stopPropagation()
+        const { elements: els } = e.target
+        let src = els.namedItem('src').value
         try {
-          src = BigIntEncoder[encType][e.target.name](src)
-        } catch (e) {
+          src = BigIntEncoder[els.namedItem('type').value][e.submitter.name](src)
+          tip.innerText = ''
+        } catch (err) {
           src = ''
-          tip.innerText = '失败'
-          console.exception(e)
+          tip.innerText = e.submitter.value + '失败'
+          throw err
+        } finally {
+          els.namedItem('dest').value = src
         }
-        $('#dest').value = src
-      }
-      $('input[name=encode]').addEventListener('click', onclick)
-      $('input[name=decodeString]').addEventListener('click', onclick)
+      })
     })()
   </script>
 </body>
