@@ -62,15 +62,21 @@
     </div>
     <textarea name="src"></textarea>
     <div style="margin:10px 0px;">
-      <input type="submit" value="编码" name="encode">
-      <input type="submit" value="解码" name="decodeString">
       <span style="display:inline-block;">
         <label><input type="radio" name="type" value="base20976" checked>Base20976</label>
         <label><input type="radio" name="type" value="base2048Bip39Cn">Base2048-BIP39-cn</label>
         <label><input type="radio" name="type" value="base2048Bip39En">Base2048-BIP39-en</label>
-        <label><input type="radio" name="type" value="base62">Base62LE</label>
         <label><input type="radio" name="type" value="base58">Base58LE</label>
         <label><input type="radio" name="type" value="切噜LE">切噜LE</label>
+      </span>
+      <br>
+      <input type="submit" value="编码" name="encode">
+      <input type="submit" value="解码" name="decodeString">
+      <span style="display:inline-block;">
+        <label><input type="radio" name="compression" value="null" checked>无压缩</label>
+        <label><input type="radio" name="compression" value="deflate-raw">deflate-raw</label>
+        <!-- <label><input type="radio" name="compression" value="gzip">gzip</label> -->
+        <!-- <label><input type="radio" name="compression" value="deflate">deflate</label> -->
       </span>
     </div>
     <textarea name="dest" readonly=""></textarea>
@@ -84,6 +90,16 @@
   <script src="./base2048-bip39-en.js"></script>
   <script>
     (() => {
+      {
+        const query='#bigint-encode [name=compression]:not([value=null])'
+        for(const radio of document.querySelectorAll(query)){
+          try{
+            new CompressionStream(radio.value)
+          }catch(e){
+            radio.disabled=true
+          }
+        }
+      }
       const tip = document.querySelector('#copytip')
       const dest = document.querySelector('#bigint-encode [name=dest]')
       const copy = data => {
@@ -97,13 +113,39 @@
         document.addEventListener("click", e => { tip.innerText = '' }, { capture: !0, once: !0 })
       }
       document.querySelector('#copy').addEventListener('click', e => { copy(dest) })
-      document.querySelector('#bigint-encode').addEventListener('submit', e => {
+      const compressor={
+        transfer(body,transform){
+          ;({body}=new Response(body))
+          body=body.pipeThrough(transform)
+          return new Response(body)
+        },
+        async encode(encoder,body,format='gzip'){
+          const transform=new CompressionStream(format)
+          const buf=await this.transfer(body,transform).arrayBuffer()
+          const encoded=encoder.encode(new Uint8Array(buf))
+          return encoded
+        },
+        async decodeString(encoder,encoded,format='gzip'){
+          const transform=new DecompressionStream(format)
+          const buf=encoder.decode(encoded)
+          const decoded=await this.transfer(buf,transform).text()
+          return decoded
+        }
+      }
+      window.compressor=compressor
+      document.querySelector('#bigint-encode').addEventListener('submit',async(e)=>{
         e.preventDefault()
         e.stopPropagation()
         const { elements: els } = e.target
         let src = els.namedItem('src').value
         try {
-          src = BigIntEncoder[els.namedItem('type').value][e.submitter.name](src)
+          const encoder=BigIntEncoder[els.namedItem('type').value]
+          const format=els.namedItem('compression').value
+          if(format==='null'){
+            src = encoder[e.submitter.name](src)
+          }else{
+            src = await compressor[e.submitter.name](encoder,src,format)
+          }
           tip.innerText = ''
         } catch (err) {
           src = ''

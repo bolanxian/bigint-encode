@@ -49,12 +49,12 @@
   Object.assign(Encoder,{
     highestOneBit(i){
       // HD, Figure 3-1
-      i |= (i >>  1)
-      i |= (i >>  2)
-      i |= (i >>  4)
-      i |= (i >>  8)
-      i |= (i >> 16)
-      return i - (i >>> 1)
+      i |= (i >>  1);
+      i |= (i >>  2);
+      i |= (i >>  4);
+      i |= (i >>  8);
+      i |= (i >> 16);
+      return i - (i >>> 1);
     },
     bufferToBigInt(buffer){
       if(buffer.length===0){return 1n}
@@ -103,10 +103,9 @@
     textDecoder:new TextDecoder()
   })
 for(let map of [
-  '123456789abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ',
-  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+  '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz',
   String.fromCharCode(...(function*(){
-    for(var i=0x4e00;i<=0x9fef;i++){yield i}
+    let i;for(i=0x4e00;i<=0x9fef;i++){yield i}
   })())
 ]){
   Encoder[`base${map.length}`]=new Encoder(map)
