@@ -13,6 +13,7 @@
       background: #fff;
       min-width: 320px;
     }
+
     textarea,
     input,
     select {
@@ -20,6 +21,7 @@
       outline: none;
       font-size: 1em;
     }
+
     .main {
       max-width: 980px;
       margin: 0 auto;
@@ -27,9 +29,11 @@
       line-height: 1.5em;
       word-wrap: break-word;
     }
+
     .main .title {
       text-align: center;
     }
+
     .main .title h1 {
       display: inline-block;
       font-weight: 500;
@@ -38,6 +42,7 @@
       line-height: 1.1em;
       margin: 15px 0;
     }
+
     .main textarea {
       width: 100%;
       height: 150px;
@@ -46,9 +51,11 @@
       line-height: 140%;
       box-sizing: border-box
     }
+
     .main textarea:hover {
       border-color: #999;
     }
+
     .main textarea:focus {
       border-color: #59f;
     }
@@ -73,10 +80,12 @@
       <input type="submit" value="编码" name="encode">
       <input type="submit" value="解码" name="decodeString">
       <span style="display:inline-block;">
-        <label><input type="radio" name="compression" value="null" checked>无压缩</label>
-        <label><input type="radio" name="compression" value="deflate-raw">deflate-raw</label>
-        <!-- <label><input type="radio" name="compression" value="gzip">gzip</label> -->
-        <!-- <label><input type="radio" name="compression" value="deflate">deflate</label> -->
+        <label><input type="radio" name="format" value="null" checked>无</label>
+        <label><input type="radio" name="format" value="deflate-raw">压缩(deflate-raw)</label>
+        <label>
+          <input type="radio" name="format" value="aes-ctr">加密(AES-CTR)
+          <input type="text" name="password" value="">
+        </label>
       </span>
     </div>
     <textarea name="dest" readonly=""></textarea>
@@ -91,68 +100,136 @@
   <script>
     (() => {
       {
-        const query='#bigint-encode [name=compression]:not([value=null])'
-        for(const radio of document.querySelectorAll(query)){
-          try{
+        const query = '#bigint-encode [name=compression]:not([value=null],[value=deflate-raw],[value=aes-ctr])'
+        for (const radio of document.querySelectorAll(query)) {
+          try {
             new CompressionStream(radio.value)
-          }catch(e){
-            radio.disabled=true
+          } catch (e) {
+            radio.disabled = true
           }
         }
       }
-      const tip = document.querySelector('#copytip')
-      const dest = document.querySelector('#bigint-encode [name=dest]')
-      const copy = data => {
+      const copy = () => {
+        const tip = document.querySelector('#copytip')
+        const data = document.querySelector('#bigint-encode [name=dest]')
         let msg = ''
         try {
           data.focus()
           data.select()
-          if (document.execCommand('copy', false, null)) { msg = '已复制！' }
+          if (document.execCommand('copy', false, null)) { msg = '已复制' }
         } catch (e) { msg = '...' }
         tip.innerText = msg
         document.addEventListener("click", e => { tip.innerText = '' }, { capture: !0, once: !0 })
       }
-      document.querySelector('#copy').addEventListener('click', e => { copy(dest) })
-      const compressor={
-        transfer(body,transform){
-          ;({body}=new Response(body))
-          body=body.pipeThrough(transform)
+      document.querySelector('#copy').addEventListener('click', copy)
+      const compressor = typeof CompressionStream === 'function' ? {
+        transfer(body, transform) {
+          ; ({ body } = new Response(body))
+          body = body.pipeThrough(transform)
           return new Response(body)
         },
-        async encode(encoder,body,format='gzip'){
-          const transform=new CompressionStream(format)
-          const buf=await this.transfer(body,transform).arrayBuffer()
-          const encoded=encoder.encode(new Uint8Array(buf))
-          return encoded
+        async encode(encoder, body, format = 'gzip') {
+          const transform = new CompressionStream(format)
+          body = await this.transfer(body, transform).arrayBuffer()
+          body = encoder.encode(new Uint8Array(body))
+          return body
         },
-        async decodeString(encoder,encoded,format='gzip'){
-          const transform=new DecompressionStream(format)
-          const buf=encoder.decode(encoded)
-          const decoded=await this.transfer(buf,transform).text()
-          return decoded
+        async decodeString(encoder, body, format = 'gzip') {
+          const transform = new DecompressionStream(format)
+          body = encoder.decode(body)
+          body = await this.transfer(body, transform).text()
+          return body
+        }
+      } : {
+        getFflate() {
+          return this.fflatePromise ??= import('https://cdn.jsdelivr.net/npm/fflate@0.7.3/esm/browser.js')
+        },
+        transfer(func, ...args) {
+          return new Promise((ok, reject) => {
+            func(...args, (err, data) => {
+              err == null ? ok(data) : reject(err)
+            })
+          })
+        },
+        async encode(encoder, body, format = 'gzip') {
+          const fflate = await this.getFflate()
+          body = new Uint8Array(await new Response(body).arrayBuffer())
+          body = await this.transfer(fflate.deflate, body, { level: 9 })
+          body = encoder.encode(body)
+          return body
+        },
+        async decodeString(encoder, body, format = 'gzip') {
+          const fflate = await this.getFflate()
+          body = encoder.decode(body)
+          body = await this.transfer(fflate.inflate, body)
+          body = await new Response(body).text()
+          return body
         }
       }
-      window.compressor=compressor
-      document.querySelector('#bigint-encode').addEventListener('submit',async(e)=>{
+      const cipher = {
+        async pbkdf2(password, salt, length = 32, iterations = 100000, hash = "SHA-256") {
+          const name = "PBKDF2", { subtle } = crypto
+          return subtle.deriveBits({
+            name, salt, iterations, hash
+          }, await subtle.importKey(
+            "raw", await new Blob([password]).arrayBuffer(), name, false, ["deriveBits"]
+          ), length * 8)
+        },
+        async aes_ctr(data, keyiv) {
+          const name = "AES-CTR", { subtle } = crypto
+          const key = await subtle.importKey("raw", new Uint8Array(keyiv, 0, 16), { name }, false, ["encrypt"])
+          const algorithm = { name, counter: new Uint8Array(keyiv, 16, 16), length: 96 }
+          return subtle.encrypt(algorithm, key, data)
+        },
+        async encrypt(data, password) {
+          const salt = crypto.getRandomValues(new Uint8Array(4))
+          const keyiv = await this.pbkdf2(password, salt, 32, 229028, "SHA-256")
+          return new Blob([salt, await this.aes_ctr(data, keyiv)]).arrayBuffer()
+        },
+        async decrypt(data, password) {
+          data = new Blob([data])
+          const salt = await data.slice(0, 4).arrayBuffer()
+          const keyiv = await this.pbkdf2(password, salt, 32, 229028, "SHA-256")
+          return this.aes_ctr(await data.slice(4).arrayBuffer(), keyiv)
+        },
+        async encode(encoder, data, password) {
+          data = await new Blob([data]).arrayBuffer()
+          data = await this.encrypt(data, password)
+          data = encoder.encode(new Uint8Array(data))
+          return data
+        },
+        async decodeString(encoder, data, password) {
+          data = encoder.decode(data)
+          data = await this.decrypt(data, password)
+          data = await new Blob([data]).text()
+          return data
+        }
+      }
+      document.querySelector('#bigint-encode').addEventListener('submit', async (e) => {
         e.preventDefault()
         e.stopPropagation()
-        const { elements: els } = e.target
-        let src = els.namedItem('src').value
+        const { target: form, submitter } = e, { elements: els } = form
+        const tip = form.querySelector('#copytip')
+        let src = els.namedItem('src').value, dest = ''
         try {
-          const encoder=BigIntEncoder[els.namedItem('type').value]
-          const format=els.namedItem('compression').value
-          if(format==='null'){
-            src = encoder[e.submitter.name](src)
-          }else{
-            src = await compressor[e.submitter.name](encoder,src,format)
+          submitter.disabled = !0
+          tip.innerText = submitter.value + '中'
+          const encoder = BigIntEncoder[els.namedItem('type').value]
+          const format = els.namedItem('format').value
+          if (format === 'aes-ctr') {
+            dest = await cipher[submitter.name](encoder, src, els.namedItem('password').value)
+          } else if (format === 'deflate-raw') {
+            dest = await compressor[submitter.name](encoder, src, format)
+          } else {
+            dest = encoder[submitter.name](src)
           }
           tip.innerText = ''
         } catch (err) {
-          src = ''
-          tip.innerText = e.submitter.value + '失败'
+          tip.innerText = submitter.value + '失败'
           throw err
         } finally {
-          els.namedItem('dest').value = src
+          submitter.disabled = !1
+          els.namedItem('dest').value = dest
         }
       })
     })()
