@@ -94,6 +94,7 @@
       <span id="copytip"></span>
     </div>
   </form>
+  <script src="https://cdn.jsdelivr.net/npm/hash-wasm@4.9.0/dist/argon2.umd.min.js"></script>
   <script src="./bigint-encode.js"></script>
   <script src="./base2048-bip39-cn.js"></script>
   <script src="./base2048-bip39-en.js"></script>
@@ -172,24 +173,39 @@
           return subtle.deriveBits({
             name, salt, iterations, hash
           }, await subtle.importKey(
-            "raw", await new Blob([password]).arrayBuffer(), name, false, ["deriveBits"]
+            "raw", await new Blob([password]).arrayBuffer(), name, !1, ["deriveBits"]
           ), length * 8)
+        },
+        argon2(password, salt, length = 32) {
+          return hashwasm.argon2id({
+            password, salt,
+            parallelism: 1,
+            iterations: 3,
+            memorySize: 64 * 1024,
+            hashLength: length,
+            outputType: 'binary'
+          })
+        },
+        async deriveBits(password, salt, length = 32) {
+          password = await this.pbkdf2(password, salt, 128, 2, "SHA-512")
+          return this.argon2(new Uint8Array(password, 0, 64), new Uint8Array(password, 64, 64), length)
         },
         async aes_ctr(data, keyiv) {
           const name = "AES-CTR", { subtle } = crypto
-          const key = await subtle.importKey("raw", new Uint8Array(keyiv, 0, 16), { name }, false, ["encrypt"])
+          keyiv = await new Blob([keyiv]).arrayBuffer()
+          const key = await subtle.importKey("raw", new Uint8Array(keyiv, 0, 16), { name }, !1, ["encrypt"])
           const algorithm = { name, counter: new Uint8Array(keyiv, 16, 16), length: 96 }
           return subtle.encrypt(algorithm, key, data)
         },
         async encrypt(data, password) {
-          const salt = crypto.getRandomValues(new Uint8Array(4))
-          const keyiv = await this.pbkdf2(password, salt, 32, 229028, "SHA-256")
+          const salt = new Uint8Array(4); crypto.getRandomValues(salt)
+          const keyiv = await this.deriveBits(password, salt, 32)
           return new Blob([salt, await this.aes_ctr(data, keyiv)]).arrayBuffer()
         },
         async decrypt(data, password) {
           data = new Blob([data])
           const salt = await data.slice(0, 4).arrayBuffer()
-          const keyiv = await this.pbkdf2(password, salt, 32, 229028, "SHA-256")
+          const keyiv = await this.deriveBits(password, salt, 32)
           return this.aes_ctr(await data.slice(4).arrayBuffer(), keyiv)
         },
         async encode(encoder, data, password) {
