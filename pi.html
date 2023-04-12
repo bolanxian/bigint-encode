@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>PI</title>
+  <style>
+    body {
+      font-size: 14px;
+      color: #111;
+      padding: 0;
+      margin: 0;
+      background: #fff;
+    }
+
+    textarea,
+    input,
+    select {
+      outline: none;
+      font-size: 1em;
+    }
+
+    .main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 12px;
+      line-height: 1.5em;
+    }
+
+    .main .title {
+      text-align: center;
+    }
+
+    .main .title h1 {
+      display: inline-block;
+      font-weight: 500;
+      font-size: 30px;
+      text-align: left;
+      line-height: 1.2em;
+      margin: 15px 0;
+    }
+
+    .main textarea,
+    .main div.textarea {
+      width: 100%;
+      border: 2px solid #aaa;
+      padding: 1%;
+      line-height: 140%;
+      box-sizing: border-box;
+      word-break: break-all;
+    }
+
+    .main textarea:hover,
+    .main div.textarea:hover {
+      border-color: #999;
+    }
+
+    .main textarea:focus,
+    .main div.textarea:focus {
+      border-color: #37f;
+    }
+  </style>
+</head>
+
+<body>
+  <form id="bigint-encode" class="main" action="about:blank">
+    <div class="title">
+      <h1>PI</h1>
+    </div>
+    <div style="margin:10px 0px;">
+      <span style="display:inline-block;">
+        <label><input type="radio" name="type" value="10" checked>10进制</label>
+        <label><input type="radio" name="type" value="16">16进制</label>
+        <label><input type="radio" name="type" value="base20976">20976进制</label>
+        <!-- <label><input type="radio" name="type" value="base2048Bip39Cn">2048进制</label> -->
+      </span>
+      <br>
+      <input type="submit" value="计算" name="calc">
+      <span style="display:inline-block;">
+        <label>
+          位数
+          <input type="text" name="digits" value="256">
+        </label>
+      </span>
+    </div>
+    <div class="textarea" name="result"></div>
+    <div name="tip" style="margin:10px 0px">
+    </div>
+  </form>
+  <script src="./bigint-encode.js"></script>
+  <!-- <script src="./base2048-bip39-cn.js"></script> -->
+  <script>
+    (() => {
+      const pi = (radix = 10, digits = 1000) => {
+        radix = BigInt(radix)
+        let i = 1n, x = 3n * (radix ** BigInt(digits + 20)), pi = x
+        while (x > 0) {
+          x = x * i / ++i / 4n
+          pi += x / ++i
+        }
+        pi /= radix ** 20n
+        return pi
+      }
+      const exp = (radix = 10, digits = 1000) => {
+        radix = BigInt(radix)
+        let i = 1n, j, x = radix ** BigInt(digits + 20), y = i, exp = x
+        do {
+          y *= i++
+          j = x / y
+          exp += j
+        } while (j > 0n)
+        exp /= radix ** 20n
+        return exp
+      }
+      const calcXRadix = (fn, radix, digits) => {
+        let value = fn(radix, digits).toString(radix)
+        return value.slice(0, -digits) + '.' + value.slice(-digits)
+      }
+      const calcBigRadix = (fn, map, digits) => {
+        let value = fn(map.length, digits)
+        value = Array.from(function* (value, map) {
+          const radix = BigInt(map.length)
+          do { yield map[Number(value % radix)] } while (value /= radix)
+        }(value, map)).reverse().join('')
+        return value.slice(0, -digits) + '.' + value.slice(-digits)
+      }
+      const result = document.querySelector('#bigint-encode [name=result]')
+
+      document.querySelector('#bigint-encode').addEventListener('submit', async (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        const { target: form, submitter } = e, { elements: els } = form
+        const tip = form.querySelector('[name=tip]')
+        let dest = ''
+        try {
+          result.innerText = ''
+          submitter.disabled = !0
+          tip.innerText = submitter.value + '中'
+          await new Promise(setTimeout)
+          const fn = pi
+          const type = els.namedItem('type').value
+          const digits = +els.namedItem('digits').value || 1000
+          if (/^\d+$/.test(type)) {
+            dest = calcXRadix(fn, +type, digits)
+          } else {
+            dest = calcBigRadix(fn, BigIntEncoder[type].map, digits)
+          }
+          tip.innerText = ''
+        } catch (err) {
+          tip.innerText = submitter.value + '失败'
+          throw err
+        } finally {
+          submitter.disabled = !1
+          result.innerText = dest
+        }
+      })
+    })()
+  </script>
+</body>
+
+</html>
