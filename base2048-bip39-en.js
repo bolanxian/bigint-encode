@@ -1,7 +1,7 @@
 (function(root,factory){
   typeof define=='function'&&define.amd?define(['./bigint-encoder'],factory):
   typeof exports=='object'&&typeof module=='object'?module.exports=factory(require('./bigint-encoder')):
-  (root.BigIntEncoder.base2048Bip39En=factory(root.BigIntEncoder))
+  (root.BigIntEncoder.base2048Bip39EN=factory(root.BigIntEncoder))
 })(this,function(Encoder){
   'use strict';
   //https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt

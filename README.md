@@ -12,13 +12,13 @@ let decoded = BigIntEncoder.base20976.decodeString(encoded)
 基于[BIP39](https://github.com/bitcoin/bips/blob/master/bip-0039/bip-0039-wordlists.md)
 ```javascript
 let encoded,decoded
-encoded = BigIntEncoder.base2048Bip39Cn.encode('Hello World!')
+encoded = BigIntEncoder.base2048Bip39CHS.encode('Hello World!')
 //"尊扫芽定罢网啊附从"
-decoded = BigIntEncoder.base2048Bip39Cn.decodeString(encoded)
+decoded = BigIntEncoder.base2048Bip39CHS.decodeString(encoded)
 
-encoded = BigIntEncoder.base2048Bip39En.encode('Hello World!')
+encoded = BigIntEncoder.base2048Bip39EN.encode('Hello World!')
 //"poverty ranch renew alone purity orange glory good around"
-decoded = BigIntEncoder.base2048Bip39En.decodeString(encoded)
+decoded = BigIntEncoder.base2048Bip39EN.decodeString(encoded)
 ```
 ## 切噜LE
 使用`切咧哔唎啪啰啵噜拉蹦`十个字作为编码表

@@ -106,11 +106,13 @@
     textEncoder: new TextEncoder(),
     textDecoder: new TextDecoder()
   })
+  function* range(begin, end) {
+    let i = begin; for (; i <= end; i++) { yield i }
+  }
   for (let map of [
     '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz',
-    String.fromCharCode(...(function* () {
-      let i; for (i = 0x4e00; i <= 0x9fef; i++) { yield i }
-    })())
+    String.fromCharCode(...range(0x30a1, 0x30fa)),
+    String.fromCharCode(...range(0x4e00, 0x9fef))
   ]) {
     Encoder[`base${map.length}`] = new Encoder(map)
   }
